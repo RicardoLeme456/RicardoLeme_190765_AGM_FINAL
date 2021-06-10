@@ -16,6 +16,8 @@ import com.badlogic.gdx.utils.ScreenUtils;
 
 import java.util.Random;
 
+import javax.swing.text.html.ImageView;
+
 public class Jogo extends ApplicationAdapter {
 
     private float larguraDispositivo; //Largura do Pano de Fundo
