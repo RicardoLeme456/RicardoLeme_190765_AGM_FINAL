@@ -13,10 +13,12 @@ import com.badlogic.gdx.math.Circle;
 import com.badlogic.gdx.math.Intersector;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.utils.ScreenUtils;
+import com.sun.xml.internal.ws.policy.privateutil.PolicyUtils;
 
 import java.util.Random;
 
 import javax.swing.text.html.ImageView;
+import javax.xml.soap.Text;
 
 public class Jogo extends ApplicationAdapter {
 
@@ -25,19 +27,27 @@ public class Jogo extends ApplicationAdapter {
     private float posicaoInicialVerticalPassaro = 0; //Posição inicial vai se iniciar no zero
     private float variacao = 0; //Variação das imagens do passaro para gerar o movimento das asa
     private float posicaoCanoHorizontal; //Posição do cano no sentido horizontal
+    private float posicaoMoedaHorizontal;
     private float posicaoCanoVertical; //Posição do cano no sentido Vertical
+    private float posicaoMoedaVertical;
     private float posicaoHorizontalPassaro = 0; //A posição a qual o passaro vai estar no jogo
     private float espacoEntreCanos; //O espçao entre os canos de cima e o de baixo
+    private float espacoEntreMoedas; //O espçao entre os canos de cima e o de baixo
     private int estadoJogo = 0; //Mudança de estados a qual o jogo irá sofrer
     private int pontos = 0; //Movimento do eixo Y
     private int pontuaçãoMaxima = 0; //A pontuação a qual o jogador vai receber pela sua classificação, ao dar Game Over irá mostrar o ponto máximo recebido
     private int gravidade = 0; //Gravidade do paasaro conforme se movimenta
+    public static Jogo instance;
+    int score;
+    public Text text;
 
     private Texture[] passaros; //As imagens dos sprites
     private Texture fundo; //A imagem de fundo
     private Texture canoBaixo; //A imagem do Cano Baixo
     private Texture canoTopo; //A imagem do cano de cima
     private Texture gameOver; //A imagem do Game Over
+    private Texture moedaPrata;
+    private Texture moedaOuro;
     private SpriteBatch batch; //Quantidades de sprites que vai ser criado
     private boolean passouCano = false; //Condição de que se passou no cano for verdadeiro ou não
     private Random random; //O aleatório do cano em relação a sua posição
@@ -56,6 +66,8 @@ public class Jogo extends ApplicationAdapter {
     private Circle circuloPassaro; //O raio do passaro
     private Rectangle retanguloCanoCima; //retangulo a qual o passaro ira bater no topo
     private Rectangle retanguloCanoBaixo; //retangulo a qual o passaro ira bater na perte de baixo
+    private Rectangle retanguloMoedaOuroCima; //retangulo a qual o passaro ira bater no topo
+    private Rectangle retanguloMoedaPrataBaixo; //retangulo a qual o passaro ira bater na perte de baixo
 
 
     @Override
@@ -75,7 +87,9 @@ public class Jogo extends ApplicationAdapter {
         alturaDispositivo = Gdx.graphics.getHeight(); //Pegar a altura do pano de fundo
         posicaoInicialVerticalPassaro = alturaDispositivo / 2; //Fazer a posição inicial ficar entre o centro da tela e não mais na posição 0
         posicaoCanoHorizontal = larguraDispositivo; //
+        posicaoMoedaHorizontal = larguraDispositivo; //
         espacoEntreCanos = 350; //O espaço que separa o cano de cima com o cano de baixo
+        espacoEntreMoedas = 350; //O espaço que separa o cano de cima com o cano de baixo
 
         textoPontuacao = new BitmapFont(); //Instanciando a fonte do texto pontuação
         textoPontuacao.setColor(Color.WHITE); //A cor que vai ser destacado nos pontos
@@ -93,7 +107,9 @@ public class Jogo extends ApplicationAdapter {
         shapeRenderer = new ShapeRenderer();
         circuloPassaro = new Circle();
         retanguloCanoCima = new Rectangle();
+        retanguloMoedaOuroCima = new Rectangle();
         retanguloCanoBaixo = new Rectangle();
+        retanguloMoedaPrataBaixo = new Rectangle();
 
         somVoando = Gdx.audio.newSound(Gdx.files.internal("som_asa.wav")); //implementação do som da asa
         somColisão = Gdx.audio.newSound(Gdx.files.internal("som_batida.wav")); //implementação do som da batida
@@ -105,15 +121,19 @@ public class Jogo extends ApplicationAdapter {
 
     private void inicializaTexturas() {
 
-        passaros = new Texture[3]; //Instanciando a quantidade de sprites a ser colocado
-        passaros[0] = new Texture("passaro1.png"); //Imagem do passaro 1
-        passaros[1] = new Texture("passaro2.png"); //Imagem do passaro 2
-        passaros[2] = new Texture("passaro3.png"); //Imagem do passaro 3
+        passaros = new Texture[4]; //Instanciando a quantidade de sprites a ser colocado
+        passaros[0] = new Texture("AngryBirds1.png"); //Imagem do passaro 1
+        passaros[1] = new Texture("AngryBirds2.png"); //Imagem do passaro 2
+        passaros[2] = new Texture("AngryBirds3.png"); //Imagem do passaro 3
+        passaros[3] = new Texture("AngryBirds4.png"); //Imagem do passaro 3
 
-        fundo = new Texture("fundo.png"); //Imagem do pano de fundo
+        fundo = new Texture("Paisagem_2.png"); //Imagem do pano de fundo
         canoBaixo = new Texture("cano_baixo_maior.png"); //Imagem do cano inferior
         canoTopo = new Texture("cano_topo_maior.png"); //Imagem do cano superior
         gameOver = new Texture("game_over.png"); //A imagem do Game Over
+
+        moedaPrata = new Texture("Silver Coin.jpg");
+        moedaOuro = new Texture("GoldCoin.png");
     }
 
 
@@ -224,6 +244,7 @@ public class Jogo extends ApplicationAdapter {
         batch.draw(passaros[(int) variacao], 50 + posicaoHorizontalPassaro, posicaoInicialVerticalPassaro); //Desenha a posição, a altura e a largura do pássaro
         batch.draw(canoBaixo, posicaoCanoHorizontal, alturaDispositivo/2 - canoBaixo.getHeight() - espacoEntreCanos / 2 + posicaoCanoVertical);
         batch.draw(canoTopo, posicaoCanoHorizontal, alturaDispositivo / 2 + espacoEntreCanos / 2 + posicaoCanoVertical);
+        batch.draw(moedaOuro, larguraDispositivo/2 - 200, alturaDispositivo / 2);
         textoPontuacao.draw(batch, String.valueOf(pontos), larguraDispositivo /2, alturaDispositivo - 100);
 
         if(estadoJogo == 2){
