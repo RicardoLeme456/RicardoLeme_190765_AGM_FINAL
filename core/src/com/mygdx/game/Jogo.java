@@ -12,12 +12,9 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Circle;
 import com.badlogic.gdx.math.Intersector;
 import com.badlogic.gdx.math.Rectangle;
-import com.badlogic.gdx.utils.ScreenUtils;
-import com.sun.xml.internal.ws.policy.privateutil.PolicyUtils;
 
 import java.util.Random;
 
-import javax.swing.text.html.ImageView;
 import javax.xml.soap.Text;
 
 public class Jogo extends ApplicationAdapter {
@@ -35,6 +32,8 @@ public class Jogo extends ApplicationAdapter {
     private float espacoEntreMoedas; //O espçao entre os canos de cima e o de baixo
     private int estadoJogo = 0; //Mudança de estados a qual o jogo irá sofrer
     private int pontos = 0; //Movimento do eixo Y
+    private int pontosMoedaOuro = 0;
+    private int pontosMoedaPrata = 0;
     private int pontuaçãoMaxima = 0; //A pontuação a qual o jogador vai receber pela sua classificação, ao dar Game Over irá mostrar o ponto máximo recebido
     private int gravidade = 0; //Gravidade do paasaro conforme se movimenta
     public static Jogo instance;
@@ -50,6 +49,7 @@ public class Jogo extends ApplicationAdapter {
     private Texture moedaOuro;
     private SpriteBatch batch; //Quantidades de sprites que vai ser criado
     private boolean passouCano = false; //Condição de que se passou no cano for verdadeiro ou não
+    private boolean passouMoeda = false;
     private Random random; //O aleatório do cano em relação a sua posição
 
     BitmapFont textoPontuacao; //A imagem da pontuação a qual vai ser intercalado
@@ -66,8 +66,8 @@ public class Jogo extends ApplicationAdapter {
     private Circle circuloPassaro; //O raio do passaro
     private Rectangle retanguloCanoCima; //retangulo a qual o passaro ira bater no topo
     private Rectangle retanguloCanoBaixo; //retangulo a qual o passaro ira bater na perte de baixo
-    private Rectangle retanguloMoedaOuroCima; //retangulo a qual o passaro ira bater no topo
-    private Rectangle retanguloMoedaPrataBaixo; //retangulo a qual o passaro ira bater na perte de baixo
+    private Circle circuloMoedaOuroCima; //retangulo a qual o passaro ira bater no topo
+    private Circle circuloMoedaPrataBaixo; //retangulo a qual o passaro ira bater na perte de baixo
 
 
     @Override
@@ -107,9 +107,9 @@ public class Jogo extends ApplicationAdapter {
         shapeRenderer = new ShapeRenderer();
         circuloPassaro = new Circle();
         retanguloCanoCima = new Rectangle();
-        retanguloMoedaOuroCima = new Rectangle();
+        circuloMoedaOuroCima = new Circle();
         retanguloCanoBaixo = new Rectangle();
-        retanguloMoedaPrataBaixo = new Rectangle();
+        circuloMoedaPrataBaixo = new Circle();
 
         somVoando = Gdx.audio.newSound(Gdx.files.internal("som_asa.wav")); //implementação do som da asa
         somColisão = Gdx.audio.newSound(Gdx.files.internal("som_batida.wav")); //implementação do som da batida
@@ -132,8 +132,8 @@ public class Jogo extends ApplicationAdapter {
         canoTopo = new Texture("cano_topo_maior.png"); //Imagem do cano superior
         gameOver = new Texture("game_over.png"); //A imagem do Game Over
 
-        moedaPrata = new Texture("Silver Coin.jpg");
-        moedaOuro = new Texture("GoldCoin.png");
+        moedaOuro = new Texture("coin_01_gold.png");
+        moedaPrata = new Texture("coin_01_silver.png");
     }
 
 
@@ -152,14 +152,26 @@ public class Jogo extends ApplicationAdapter {
         circuloPassaro.set(50 + passaros[0].getWidth() / 2, posicaoInicialVerticalPassaro + passaros[0].getHeight() / 2, passaros[0].getWidth() / 2);
 
         retanguloCanoBaixo.set(posicaoCanoHorizontal, alturaDispositivo / 2 - canoBaixo.getHeight() - espacoEntreCanos / 2 + posicaoCanoVertical, canoBaixo.getWidth(), canoBaixo.getHeight());
+        circuloMoedaPrataBaixo.set(50 + moedaPrata.getWidth() / 2, posicaoMoedaHorizontal + moedaPrata.getHeight() / 2, moedaPrata.getWidth() / 2);
 
         retanguloCanoCima.set(posicaoCanoHorizontal, alturaDispositivo / 2 - canoTopo.getHeight() - espacoEntreCanos / 2 + posicaoCanoVertical, canoTopo.getWidth(), canoTopo.getHeight());
+        circuloMoedaOuroCima.set(50 + moedaOuro.getWidth() / 2, posicaoMoedaHorizontal + moedaOuro.getHeight() / 2, moedaOuro.getWidth() / 2);
 
         boolean bateuCanoCima = Intersector.overlaps(circuloPassaro, retanguloCanoCima); //Verifica se os sprites convexos se sobrepõem
         boolean bateuCanoBaixo = Intersector.overlaps(circuloPassaro, retanguloCanoBaixo);
 
+        boolean bateuMoedaOuroCima = Intersector.overlaps(circuloPassaro, circuloMoedaOuroCima);
+        boolean bateuMoedaPrataBaixo = Intersector.overlaps(circuloPassaro, circuloMoedaPrataBaixo);
+
         //Ao bater no cano de cima ou no cano de baixo, sai o som
         if(bateuCanoBaixo || bateuCanoCima){
+            if(estadoJogo == 1){
+                somColisão.play();
+                estadoJogo = 2;
+            }
+        }
+
+        if(bateuMoedaOuroCima || bateuMoedaPrataBaixo){
             if(estadoJogo == 1){
                 somColisão.play();
                 estadoJogo = 2;
@@ -176,13 +188,30 @@ public class Jogo extends ApplicationAdapter {
                 somPontuação.play(); //O som da pontuação ao passar o cano
             }
         }
+
+        if(posicaoMoedaHorizontal < 50 - passaros[0].getWidth()){
+            if(!passouMoeda){
+                pontos++;
+
+                passouMoeda = true;
+            }
+        }
+            pontos++;
+
         variacao += Gdx.graphics.getDeltaTime() * 10; //Suaviza a animação do bater das asas do passaro ao multiplicar por 10
-        if(variacao > 3) //Se aa imagens do sprites ultrapassar de três, faz alguma coisa
+        if(variacao > 4) //Se aa imagens do sprites ultrapassar de três, faz alguma coisa
             variacao = 0; //A imagem for maior que 3 retorna para zero
     }
 
     //Os estados a sofrer mudanças conforme as ações
     private void verificaEstadoJogo() {
+
+        posicaoMoedaHorizontal -= Gdx.graphics.getDeltaTime() * 200;
+        if(posicaoMoedaHorizontal < -moedaOuro.getHeight()){
+            posicaoMoedaHorizontal = larguraDispositivo;
+            posicaoMoedaVertical = random.nextInt(400) - 200;
+            passouMoeda = false;
+        }
 
         //Faz a posição inicial ao sofrer gravidade, mas ao tocar na tela ele flutua
         boolean toqueTela = Gdx.input.justTouched(); //Ao tocar na tela faz algo
@@ -244,7 +273,8 @@ public class Jogo extends ApplicationAdapter {
         batch.draw(passaros[(int) variacao], 50 + posicaoHorizontalPassaro, posicaoInicialVerticalPassaro); //Desenha a posição, a altura e a largura do pássaro
         batch.draw(canoBaixo, posicaoCanoHorizontal, alturaDispositivo/2 - canoBaixo.getHeight() - espacoEntreCanos / 2 + posicaoCanoVertical);
         batch.draw(canoTopo, posicaoCanoHorizontal, alturaDispositivo / 2 + espacoEntreCanos / 2 + posicaoCanoVertical);
-        batch.draw(moedaOuro, larguraDispositivo/2 - 200, alturaDispositivo / 2);
+        batch.draw(moedaOuro, posicaoMoedaHorizontal, alturaDispositivo / 2 - moedaOuro.getHeight() - espacoEntreMoedas / 2 + posicaoMoedaVertical);
+        batch.draw(moedaPrata, posicaoMoedaHorizontal, alturaDispositivo / 2 + espacoEntreMoedas /2 + posicaoMoedaVertical);
         textoPontuacao.draw(batch, String.valueOf(pontos), larguraDispositivo /2, alturaDispositivo - 100);
 
         if(estadoJogo == 2){
